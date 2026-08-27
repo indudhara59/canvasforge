@@ -1,50 +1,10 @@
 import { NextResponse } from "next/server";
-import mongoose from "mongoose";
 
 import { auth } from "@/auth";
-import connectToDatabase from "@/lib/mongodb";
-import Project, { type IProject } from "@/models/Project";
+import { getAuthorizedProject, projectAccessErrorMessage } from "@/lib/project-access";
+import Project from "@/models/Project";
 import Scene from "@/models/Scene";
 import SceneVersion from "@/models/SceneVersion";
-
-type AuthorizedResult =
-  | { status: 400 | 404 | 403 }
-  | { status: 200; project: IProject; isOwner: boolean };
-
-async function getAuthorizedProject(id: string, userId: string): Promise<AuthorizedResult> {
-  if (!mongoose.Types.ObjectId.isValid(id)) {
-    return { status: 400 };
-  }
-
-  await connectToDatabase();
-
-  const project = await Project.findById(id);
-  if (!project) {
-    return { status: 404 };
-  }
-
-  const isOwner = project.ownerId.toString() === userId;
-  const isCollaborator = project.collaboratorIds.some((c) => c.toString() === userId);
-
-  if (!isOwner && !isCollaborator) {
-    return { status: 403 };
-  }
-
-  return { status: 200, project, isOwner };
-}
-
-function errorMessageFor(status: number) {
-  switch (status) {
-    case 400:
-      return "Invalid project id.";
-    case 404:
-      return "Project not found.";
-    case 403:
-      return "You do not have access to this project.";
-    default:
-      return "Something went wrong.";
-  }
-}
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = await auth();
@@ -60,7 +20,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const result = await getAuthorizedProject(params.id, session.user.id);
   if (result.status !== 200) {
-    return NextResponse.json({ error: errorMessageFor(result.status) }, { status: result.status });
+    return NextResponse.json(
+      { error: projectAccessErrorMessage(result.status) },
+      { status: result.status },
+    );
   }
 
   result.project.name = name;
@@ -82,7 +45,10 @@ export async function DELETE(_request: Request, { params }: { params: { id: stri
 
   const result = await getAuthorizedProject(params.id, session.user.id);
   if (result.status !== 200) {
-    return NextResponse.json({ error: errorMessageFor(result.status) }, { status: result.status });
+    return NextResponse.json(
+      { error: projectAccessErrorMessage(result.status) },
+      { status: result.status },
+    );
   }
 
   if (!result.isOwner) {

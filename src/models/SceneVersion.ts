@@ -19,14 +19,18 @@ const ViewportSchema = new Schema<Viewport>(
   { _id: false },
 );
 
-const SceneVersionSchema = new Schema<ISceneVersion>({
-  projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true, index: true },
-  nodes: { type: Schema.Types.Mixed, default: {} },
-  rootIds: [{ type: String, default: [] }],
-  viewport: { type: ViewportSchema, default: () => ({ x: 0, y: 0, scale: 1 }) },
-  version: { type: Number, required: true },
-  createdAt: { type: Date, default: Date.now },
-});
+const SceneVersionSchema = new Schema<ISceneVersion>(
+  {
+    projectId: { type: Schema.Types.ObjectId, ref: "Project", required: true, index: true },
+    nodes: { type: Schema.Types.Mixed, default: {} },
+    rootIds: [{ type: String, default: [] }],
+    viewport: { type: ViewportSchema, default: () => ({ x: 0, y: 0, scale: 1 }) },
+    version: { type: Number, required: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  // See Scene.ts — disables Mongoose's default empty-object stripping.
+  { minimize: false },
+);
 
 // History lookups fetch the most recent versions for a project.
 SceneVersionSchema.index({ projectId: 1, version: -1 });
