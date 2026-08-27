@@ -2,12 +2,19 @@
 
 import * as React from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { ArrowLeft, Loader2, Plus, Redo2, Undo2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSceneStore, useSceneTemporalStore } from "@/store/sceneStore";
 import { useViewportStore } from "@/store/viewportStore";
 import type { SceneNode, Viewport } from "@/types/scene";
+
+// react-konva touches the canvas/DOM at module load; it can't run during SSR.
+const CanvasStage = dynamic(
+  () => import("@/components/canvas/CanvasStage").then((mod) => mod.CanvasStage),
+  { ssr: false },
+);
 
 interface SceneResponse {
   nodes: Record<string, SceneNode>;
@@ -86,7 +93,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 }
 
 function CanvasWorkspace() {
-  const nodes = useSceneStore((state) => state.nodes);
   const rootIds = useSceneStore((state) => state.rootIds);
   const selectedIds = useSceneStore((state) => state.selectedIds);
   const addNode = useSceneStore((state) => state.addNode);
@@ -96,11 +102,9 @@ function CanvasWorkspace() {
   const undo = useSceneTemporalStore((state) => state.undo);
   const redo = useSceneTemporalStore((state) => state.redo);
 
-  const nodeCount = Object.keys(nodes).length;
-
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="glass-panel sticky top-0 z-40 flex items-center justify-between px-6 py-3">
+    <div className="flex h-screen flex-col">
+      <header className="glass-panel z-40 flex items-center justify-between px-6 py-3">
         <Button asChild variant="ghost" size="sm">
           <Link href="/dashboard">
             <ArrowLeft className="h-4 w-4" />
@@ -109,6 +113,9 @@ function CanvasWorkspace() {
         </Button>
 
         <div className="flex items-center gap-2">
+          <span className="mr-1 text-xs text-muted-foreground">
+            {rootIds.length} node{rootIds.length === 1 ? "" : "s"} · {selectedIds.length} selected
+          </span>
           <Button variant="ghost" size="icon" onClick={() => undo()} disabled={!canUndo}>
             <Undo2 className="h-4 w-4" />
             <span className="sr-only">Undo</span>
@@ -117,21 +124,25 @@ function CanvasWorkspace() {
             <Redo2 className="h-4 w-4" />
             <span className="sr-only">Redo</span>
           </Button>
-          <Button size="sm" onClick={() => addNode({ type: "rect" })}>
+          <Button
+            size="sm"
+            onClick={() =>
+              addNode({
+                type: "rect",
+                // Cascade so repeated adds don't stack exactly on top of each other.
+                x: 80 + rootIds.length * 24,
+                y: 80 + rootIds.length * 24,
+              })
+            }
+          >
             <Plus className="h-4 w-4" />
             Add rectangle
           </Button>
         </div>
       </header>
 
-      <main className="flex flex-1 items-center justify-center bg-grid">
-        <div className="glass-panel-solid rounded-xl px-8 py-6 text-center">
-          <p className="text-sm font-medium">Canvas renderer comes next.</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {nodeCount} node{nodeCount === 1 ? "" : "s"} loaded · {rootIds.length} at root ·{" "}
-            {selectedIds.length} selected
-          </p>
-        </div>
+      <main className="min-h-0 flex-1">
+        <CanvasStage />
       </main>
     </div>
   );
