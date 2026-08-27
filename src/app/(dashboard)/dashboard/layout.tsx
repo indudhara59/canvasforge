@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Layers } from "lucide-react";
 
+import { NewProjectDialog } from "@/components/dashboard/new-project-dialog";
 import { UserMenu } from "@/components/user-menu";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -14,7 +15,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <span className="text-sm font-semibold tracking-tight">PixelForge Studio</span>
         </Link>
 
-        <UserMenu />
+        <div className="flex items-center gap-3">
+          <NewProjectDialog />
+          <UserMenu />
+        </div>
       </header>
 
       <main className="px-6 py-10">{children}</main>
